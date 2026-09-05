@@ -1,0 +1,51 @@
+name: Deploy subscription
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Download official Mihomo core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          asset_url="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$")) | .browser_download_url' | head -n 1)"
+          if [ -z "$asset_url" ]; then
+            # If the compatible build is unavailable, fall back to any amd64 build.
+            asset_url="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.assets[] | select(.name | test("^mihomo-linux-amd64.*\\.gz$")) | .browser_download_url' | head -n 1)"
+          fi
+          test -n "$asset_url"
+          mkdir -p tools/mihomo
+          curl --fail --location --retry 3 "$asset_url" --output tools/mihomo/mihomo.gz
+          gzip --decompress tools/mihomo/mihomo.gz
+          chmod +x tools/mihomo/mihomo
+      - name: Generate subscription
+        run: go run ./cmd/pangolin
+      - name: Prepare Pages artifact
+        run: |
+          mkdir public
+          cp clash.yaml public/clash.yaml
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build -trimpath -ldflags='-s -w' -o dist/pangolin-linux-amd64 ./cmd/pangolin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pangolin-linux-amd64
+          path: dist/pangolin-linux-amd64
+          if-no-files-found: error
