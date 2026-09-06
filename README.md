@@ -13,7 +13,7 @@ Pangolin is a Go-based proxy subscription generator for Mihomo and Clash-compati
 - Runs Mihomo delay checks with multiple rounds, median latency, jitter, and quality thresholds.
 - Generates regional proxy groups, AI routing groups, fallback routes, and a DIRECT fallback.
 - Validates the generated configuration with Mihomo before publishing it.
-- Provides GitHub Actions CI and manual GitHub Pages deployment.
+- Provides GitHub Actions CI, a manually triggerable GitHub Pages deployment, and a daily automatic refresh.
 
 ## Repository Files
 
@@ -23,7 +23,8 @@ clash.yaml                  # Generated subscription output
 cmd/pangolin                 # CLI entry point
 internal/                    # Application, source, benchmark, and subscription logic
 .github/workflows/ci.yml     # Tests, vetting, and Linux build
-.github/workflows/deploy.yml # Manual subscription deployment
+.github/workflows/deploy.yml # Daily and manual subscription deployment
+.github/dependabot.yml       # GitHub Actions and Go module updates
 ```
 
 ## Configure Sources
@@ -46,8 +47,9 @@ The source must expose a supported proxy subscription. Mihomo is not configured 
 2. In repository settings, enable GitHub Pages with `GitHub Actions` as the source.
 3. Open the Actions tab.
 4. Select `Deploy subscription`.
-5. Click `Run workflow`.
-6. Wait for the workflow to download Mihomo, generate `clash.yaml`, and deploy the Pages artifact.
+5. Optionally set the `mihomo_version` input to pin a Mihomo release tag; `latest` (the default) tracks the newest release.
+6. Click `Run workflow`.
+7. Wait for the workflow to download Mihomo, generate `clash.yaml`, and deploy the Pages artifact.
 
 The generated subscription is available at:
 
@@ -55,7 +57,7 @@ The generated subscription is available at:
 https://<owner>.github.io/<repository>/clash.yaml
 ```
 
-The deployment workflow requires Pages write permission and the GitHub Pages environment. It downloads the latest compatible official Mihomo Linux AMD64 release at deployment time.
+The deployment workflow requires Pages write permission and the GitHub Pages environment. It downloads the requested compatible official Mihomo Linux AMD64 release, verifies the core with a smoke test, and caches it across runs. The workflow also runs automatically every day at 04:00 UTC so the published subscription stays fresh; GitHub disables scheduled runs after 60 days without repository activity, so push a commit or trigger a manual run to keep the schedule alive.
 
 ## Local Development
 

@@ -1,5 +1,13 @@
 # ChangeLog
 
+## 0.2.1 - 2026-09-07
+
+- Deployments now run automatically every day at 04:00 UTC in addition to the manual trigger.
+- Added a `mihomo_version` workflow input to pin the Mihomo release tag (latest by default) and a smoke test that verifies the downloaded core before generation.
+- Hardened the Mihomo download: transient GitHub API failures now fall through to the fallback pattern instead of aborting the step, and the core is cached by release tag across runs.
+- CI now checks `gofmt`, cancels superseded runs, enforces a 30-minute job timeout, and skips documentation-only changes.
+- Added Dependabot tracking for GitHub Actions and Go module updates.
+
 ## 0.2.0 - 2026-09-06
 
 - Added SSR URI (ssr://) parsing with base64url links and obfs/proto/remarks parameters.

@@ -2,6 +2,13 @@ name: Deploy subscription
 
 on:
   workflow_dispatch:
+    inputs:
+      mihomo_version:
+        description: 'Mihomo release tag to use (default: latest)'
+        required: false
+        default: 'latest'
+  schedule:
+    - cron: '0 4 * * *'
 
 permissions:
   contents: read
@@ -15,6 +22,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -24,20 +32,46 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Download official Mihomo core
+      - name: Resolve Mihomo version
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          asset_url="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$")) | .browser_download_url' | head -n 1)"
+          tag="${{ inputs.mihomo_version }}"
+          # Scheduled runs provide no inputs, so an empty value means latest.
+          if [ -z "$tag" ] || [ "$tag" = "latest" ]; then
+            tag="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.tag_name')"
+          fi
+          test -n "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Cache Mihomo core
+        id: core-cache
+        uses: actions/cache@v6
+        with:
+          path: tools/mihomo
+          key: mihomo-${{ steps.version.outputs.tag }}
+      - name: Download official Mihomo core
+        if: steps.core-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The trailing || true keeps a transient gh api failure (rate limit,
+          # network hiccup) from killing the script under set -e before the
+          # fallback and the fail-fast test below get a chance to run.
+          asset_url="$(gh api "repos/MetaCubeX/mihomo/releases/tags/${{ steps.version.outputs.tag }}" --jq '.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$")) | .browser_download_url' | head -n 1 || true)"
           if [ -z "$asset_url" ]; then
-            # If the compatible build is unavailable, fall back to any amd64 build.
-            asset_url="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.assets[] | select(.name | test("^mihomo-linux-amd64.*\\.gz$")) | .browser_download_url' | head -n 1)"
+            # Compatible build unavailable: fall back to an explicit amd64 v1
+            # build. A broad "^mihomo-linux-amd64.*" pattern would match the
+            # compatible build first anyway (it sorts before the v1 assets).
+            asset_url="$(gh api "repos/MetaCubeX/mihomo/releases/tags/${{ steps.version.outputs.tag }}" --jq '.assets[] | select(.name | test("^mihomo-linux-amd64-v1.*\\.gz$")) | .browser_download_url' | head -n 1 || true)"
           fi
           test -n "$asset_url"
           mkdir -p tools/mihomo
           curl --fail --location --retry 3 "$asset_url" --output tools/mihomo/mihomo.gz
           gzip --decompress tools/mihomo/mihomo.gz
           chmod +x tools/mihomo/mihomo
+      - name: Smoke-test Mihomo core
+        run: tools/mihomo/mihomo -v
       - name: Generate subscription
         run: go run ./cmd/pangolin
       - name: Prepare Pages artifact
