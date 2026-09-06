@@ -1,0 +1,13 @@
+# Pangolin configuration.
+# Add at least one source.
+
+sources:
+  - name: "snakem982 proxypool"
+    primary: "https://raw.githubusercontent.com/snakem982/proxypool/main/clash.yaml"
+    fallbacks: ["https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta-2.yaml", "https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta.yaml"]
+  - name: "PuddinCat BestClash"
+    primary: "https://raw.githubusercontent.com/PuddinCat/BestClash/refs/heads/main/proxies.yaml"
+    fallbacks: []
+  - name: "zhuhaiuk free-nodes"
+    primary: "https://raw.githubusercontent.com/zhuhaiuk/free-nodes/main/clash_config.yaml"
+    fallbacks: []

@@ -1,0 +1,10 @@
+# Local configuration and generated output
+.pangolin/
+*.exe
+*.tmp
+clash.yaml
+
+# Go tooling
+coverage.out
+dist/
+tools/
