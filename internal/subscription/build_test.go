@@ -56,6 +56,18 @@ func TestAutoFastContainsAllPublishedNodes(t *testing.T) {
 	}
 }
 
+func TestGroupSet(t *testing.T) {
+	out := Build(nil)
+	got := make([]string, 0, len(out.Groups))
+	for _, group := range out.Groups {
+		got = append(got, group.Name)
+	}
+	want := []string{"AUTO-FAST", "ALL", "FALLBACK", "PROXY"}
+	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("group set mismatch: got %v, want %v", got, want)
+	}
+}
+
 func TestRejectsDanglingReference(t *testing.T) {
 	out := Build(nil)
 	out.Groups[0].Proxies = []string{"missing"}

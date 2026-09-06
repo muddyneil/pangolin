@@ -11,7 +11,7 @@ Pangolin is a Go-based proxy subscription generator for Mihomo and Clash-compati
 - Filters invalid, oversized, unsupported, and duplicate nodes.
 - Merges multiple sources with round-robin distribution and unique node names.
 - Runs Mihomo delay checks with multiple rounds, median latency, jitter, and quality thresholds.
-- Generates regional proxy groups, AI routing groups, fallback routes, and a DIRECT fallback.
+- Generates an automatic, a manual selection, and a fallback proxy group with a DIRECT fallback.
 - Validates the generated configuration with Mihomo before publishing it.
 - Provides GitHub Actions CI, a manually triggerable GitHub Pages deployment, and an automatic refresh every two hours.
 

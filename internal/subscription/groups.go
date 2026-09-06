@@ -7,13 +7,3 @@ func names(nodes []Proxy) []string {
 	}
 	return result
 }
-
-func namesByRegion(nodes []Proxy, target string) []string {
-	result := make([]string, 0)
-	for _, node := range nodes {
-		if node.Region == target {
-			result = append(result, node.Name)
-		}
-	}
-	return result
-}
