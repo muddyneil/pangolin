@@ -11,7 +11,7 @@ func TestFallbackOutputIsValid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(data) == 0 || len(out.Proxies) != 1 || out.Proxies[0].Name != "DIRECT-FALLBACK" {
+	if len(data) == 0 || len(out.Proxies) != 0 || len(out.Groups[0].Proxies) != 1 || out.Groups[0].Proxies[0] != "DIRECT" {
 		t.Fatalf("invalid fallback output: %s", data)
 	}
 }

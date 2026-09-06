@@ -74,9 +74,13 @@ func EstimatedTimeout(candidateCount int, cfg Config) time.Duration {
 	if probeTimeout <= 0 {
 		probeTimeout = 5 * time.Second
 	}
+	probeTimes := cfg.ProbeTimes
+	if probeTimes < 3 {
+		probeTimes = 3
+	}
 	batches := (candidateCount + benchmarkBatchSize - 1) / benchmarkBatchSize
 	waves := (benchmarkBatchSize + probeWorkers - 1) / probeWorkers
-	budget := time.Duration(batches*waves*cfg.ProbeTimes*len(cfg.URLs)) * probeTimeout
+	budget := time.Duration(batches*waves*probeTimes*len(cfg.URLs)) * probeTimeout
 	if budget < 15*time.Minute {
 		return 15 * time.Minute
 	}

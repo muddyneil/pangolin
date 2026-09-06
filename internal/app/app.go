@@ -139,7 +139,7 @@ func Run(configPath string) error {
 	}
 	message := "Subscription generated"
 	if len(nodes) == 0 {
-		message += " (no usable nodes; using DIRECT-FALLBACK)"
+		message += " (no usable nodes; using DIRECT)"
 	} else {
 		message += fmt.Sprintf(" (%d nodes connected)", len(nodes))
 	}

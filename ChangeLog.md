@@ -1,5 +1,13 @@
 # ChangeLog
 
+## 0.2.5 - 2026-09-07
+
+- Fixed empty subscriptions to use Mihomo's built-in DIRECT proxy instead of a non-functional `127.0.0.1:1` SOCKS5 placeholder.
+- Added support for legacy Base64-wrapped Shadowsocks URIs and SSR links with bracketed IPv6 servers.
+- Fixed SSR parameter decoding so printable plain-text values are not corrupted by an ambiguous Base64 decode.
+- Kept benchmark timeout estimation aligned with the minimum three probe rounds used by the actual probe logic.
+- Added regression tests covering legacy SS links, SSR IPv6 links, plain-text SSR parameters, and the DIRECT fallback configuration.
+
 ## 0.2.4 - 2026-09-07
 
 - Isolated un-named Mihomo config rejections: a rejected batch is now probed node by node so a malformed node whose error text does not mention it is dropped instead of aborting the whole benchmark, while rejections that survive isolation still fail loudly.

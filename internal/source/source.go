@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/pangolin/pangolin/internal/version"
 )
@@ -409,24 +411,29 @@ func parseVMessURI(encoded string) (map[string]any, error) {
 
 func parseSSURI(raw string) (map[string]any, error) {
 	u, err := url.Parse(raw)
-	if err != nil || u.User == nil || u.Hostname() == "" {
+	if err != nil {
 		return nil, fmt.Errorf("invalid SS content")
 	}
-	decoded, err := decodeBase64(u.User.Username())
-	if err != nil {
-		return nil, fmt.Errorf("invalid SS encoding")
-	}
-	server, portText := u.Hostname(), u.Port()
-	credentials := strings.SplitN(string(decoded), ":", 2)
-	if strings.Contains(string(decoded), "@") {
-		parts := strings.SplitN(string(decoded), "@", 2)
-		credentials = strings.SplitN(parts[0], ":", 2)
-		server, portText, err = net.SplitHostPort(parts[1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid SS address")
+	var server, portText string
+	var credentials []string
+	if u.User != nil {
+		decoded, decodeErr := decodeBase64(u.User.Username())
+		if decodeErr != nil {
+			return nil, fmt.Errorf("invalid SS encoding")
 		}
+		server, portText, credentials, err = parseSSPayload(string(decoded), u.Hostname(), u.Port())
+	} else {
+		payload := strings.TrimPrefix(strings.TrimSpace(raw), "ss://")
+		if fragment := strings.IndexByte(payload, '#'); fragment >= 0 {
+			payload = payload[:fragment]
+		}
+		decoded, decodeErr := decodeBase64(payload)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("invalid SS encoding")
+		}
+		server, portText, credentials, err = parseSSPayload(string(decoded), "", "")
 	}
-	if len(credentials) != 2 {
+	if err != nil || server == "" || len(credentials) != 2 {
 		return nil, fmt.Errorf("invalid SS content")
 	}
 	port, err := strconv.Atoi(portText)
@@ -447,6 +454,19 @@ func parseSSURI(raw string) (map[string]any, error) {
 	return result, nil
 }
 
+func parseSSPayload(payload, fallbackServer, fallbackPort string) (string, string, []string, error) {
+	server, portText := fallbackServer, fallbackPort
+	credentials := strings.SplitN(payload, ":", 2)
+	if at := strings.LastIndex(payload, "@"); at >= 0 {
+		credentials = strings.SplitN(payload[:at], ":", 2)
+		server, portText, _ = net.SplitHostPort(payload[at+1:])
+	}
+	if len(credentials) != 2 {
+		return "", "", nil, fmt.Errorf("invalid SS content")
+	}
+	return server, portText, credentials, nil
+}
+
 // parseSSRURI decodes the standard ssr:// form:
 // ssr://base64url(server:port:protocol:method:obfs:base64(password)/?params)
 // where params like obfsparam/protoparam/remarks are base64url- or
@@ -464,9 +484,9 @@ func parseSSRURI(raw string) (map[string]any, error) {
 		text = text[:index]
 	}
 	text = strings.TrimSuffix(text, "/")
-	core := strings.Split(text, ":")
-	if len(core) < 6 {
-		return nil, fmt.Errorf("invalid SSR content")
+	core, err := splitSSRCore(text)
+	if err != nil {
+		return nil, err
 	}
 	password, err := decodeBase64(core[5])
 	if err != nil {
@@ -490,17 +510,48 @@ func parseSSRURI(raw string) (map[string]any, error) {
 	return result, nil
 }
 
+func splitSSRCore(text string) ([]string, error) {
+	if strings.HasPrefix(text, "[") {
+		end := strings.IndexByte(text, ']')
+		if end < 0 || end+1 >= len(text) || text[end+1] != ':' {
+			return nil, fmt.Errorf("invalid SSR content")
+		}
+		server := text[1:end]
+		rest := strings.SplitN(text[end+2:], ":", 5)
+		if len(rest) != 5 || server == "" {
+			return nil, fmt.Errorf("invalid SSR content")
+		}
+		return append([]string{server}, rest...), nil
+	}
+	core := strings.SplitN(text, ":", 6)
+	if len(core) != 6 || core[0] == "" {
+		return nil, fmt.Errorf("invalid SSR content")
+	}
+	return core, nil
+}
 func decodeParam(value string) string {
 	if value == "" {
 		return ""
 	}
-	if decoded, err := decodeBase64(value); err == nil {
+	if decoded, err := decodeBase64(value); err == nil && isPrintable(decoded) {
 		return string(decoded)
 	}
 	if decoded, err := url.QueryUnescape(value); err == nil {
 		return decoded
 	}
 	return value
+}
+
+func isPrintable(data []byte) bool {
+	if len(data) == 0 || !utf8.Valid(data) {
+		return false
+	}
+	for _, r := range string(data) {
+		if !unicode.IsPrint(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func parsePlugin(value string) (string, map[string]any) {

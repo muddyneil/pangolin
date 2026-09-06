@@ -6,10 +6,35 @@ import (
 	"testing"
 )
 
+func TestParseSSLegacyURI(t *testing.T) {
+	encoded := base64.RawStdEncoding.EncodeToString([]byte("aes-256-gcm:secret@example.com:8388"))
+	proxy, err := parseURI("ss://" + encoded + "#legacy")
+	if err != nil || proxy["server"] != "example.com" || proxy["port"] != 8388 || proxy["name"] != "legacy" {
+		t.Fatalf("unexpected legacy SS proxy: %v %#v", err, proxy)
+	}
+}
+
 func TestParseSSURIWithoutName(t *testing.T) {
 	proxy, err := parseURI("ss://YWVzLTI1Ni1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4@ignored")
 	if err != nil || proxy["server"] != "example.com" {
 		t.Fatalf("unexpected SS proxy: %v %#v", err, proxy)
+	}
+}
+
+func TestParseSSRIPv6URI(t *testing.T) {
+	core := "[2001:db8::1]:443:auth_aes128_md5:aes-256-cfb:http_simple:" + base64.RawStdEncoding.EncodeToString([]byte("secret"))
+	proxy, err := parseURI("ssr://" + base64.RawURLEncoding.EncodeToString([]byte(core)))
+	if err != nil || proxy["server"] != "2001:db8::1" || proxy["port"] != 443 {
+		t.Fatalf("unexpected SSR IPv6 proxy: %v %#v", err, proxy)
+	}
+}
+
+func TestParseSSRPlainTextParam(t *testing.T) {
+	core := "example.com:443:auth_aes128_md5:aes-256-cfb:http_simple:" + base64.RawStdEncoding.EncodeToString([]byte("secret"))
+	inner := core + "/?remarks=test"
+	proxy, err := parseURI("ssr://" + base64.RawURLEncoding.EncodeToString([]byte(inner)))
+	if err != nil || proxy["name"] != "test" {
+		t.Fatalf("unexpected SSR plain parameter: %v %#v", err, proxy)
 	}
 }
 

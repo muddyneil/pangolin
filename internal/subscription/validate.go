@@ -6,9 +6,6 @@ import (
 )
 
 func Validate(out Output) error {
-	if len(out.Proxies) == 0 {
-		return fmt.Errorf("subscription must contain at least one node")
-	}
 	names := map[string]bool{}
 	for _, proxy := range out.Proxies {
 		if proxy.Name == "" || names[proxy.Name] {
@@ -32,7 +29,7 @@ func Validate(out Output) error {
 			return fmt.Errorf("proxy group %q is empty", group.Name)
 		}
 		for _, ref := range group.Proxies {
-			if !names[ref] && !groupSet[ref] {
+			if ref != "DIRECT" && !names[ref] && !groupSet[ref] {
 				return fmt.Errorf("proxy group %q references a missing node or proxy group %q", group.Name, ref)
 			}
 		}
