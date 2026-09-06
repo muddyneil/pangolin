@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -78,7 +79,20 @@ func Run(configPath string) error {
 		defer cancelBenchmark()
 		metrics, dropped, err := benchmark.Benchmark(benchmarkCtx, corePath, proxyMaps, candidates, probeConfig)
 		if err != nil {
-			return fmt.Errorf("node quality probe failed: %w", err)
+			if errors.Is(err, context.DeadlineExceeded) {
+				// A timed-out benchmark left the unmeasured nodes with all-zero
+				// metrics; publishing them as ineligible would silently wipe the
+				// pool, so fail loudly instead of producing an empty subscription.
+				return fmt.Errorf("node quality probe exceeded its %s budget and was cancelled; nothing was published: %w", benchmarkTimeout, err)
+			}
+			if len(metrics) == 0 {
+				return fmt.Errorf("node quality probe failed: %w", err)
+			}
+			// Keep the nodes measured before an engine-level failure instead of
+			// discarding them: a partial probe result is more useful than an
+			// empty subscription, and the failure is reported so the operator
+			// can see the run was not a clean sweep.
+			io.WriteString(os.Stdout, fmt.Sprintf("WARNING: node quality probe failed for part of the candidate set; continuing with the %d nodes measured before the failure: %v\n", len(metrics), err))
 		}
 		if len(dropped) > 0 {
 			io.WriteString(os.Stdout, fmt.Sprintf("Dropped %d nodes rejected by Mihomo configuration: %s\n", len(dropped), strings.Join(dropped, ", ")))

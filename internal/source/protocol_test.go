@@ -76,6 +76,26 @@ func TestParseSSRURI(t *testing.T) {
 	}
 }
 
+func TestParseSSRPasswordEndingInSlash(t *testing.T) {
+	// A password whose RAW base64 ends with '/' (e.g. bytes {0xFF,0xFF,0xFF}
+	// encode to "////") produces a double slash in the canonical link: one
+	// from the base64 itself and one structural '/' before the params.
+	// parseSSRURI must keep all four slashes of the password and trim only
+	// the structural one.
+	password := string([]byte{0xFF, 0xFF, 0xFF})
+	core := "example.com:443:auth_aes128_md5:aes-256-cfb:http_simple:" + base64.RawStdEncoding.EncodeToString([]byte(password)) + "/?remarks=" + base64.RawURLEncoding.EncodeToString([]byte("slash-node"))
+	proxy, err := parseURI("ssr://" + base64.RawURLEncoding.EncodeToString([]byte(core)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proxy["password"] != password {
+		t.Fatalf("trailing slash of the password was trimmed: %q != %q", proxy["password"], password)
+	}
+	if proxy["name"] != "slash-node" {
+		t.Fatalf("unexpected SSR name: %#v", proxy)
+	}
+}
+
 func TestParseURIAppliesConventionalPorts(t *testing.T) {
 	proxy, err := parseURI("https://example.com")
 	if err != nil || proxy["port"] != 443 || proxy["type"] != "http" || proxy["tls"] != true {

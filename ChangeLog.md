@@ -1,5 +1,14 @@
 # ChangeLog
 
+## 0.2.4 - 2026-09-07
+
+- Isolated un-named Mihomo config rejections: a rejected batch is now probed node by node so a malformed node whose error text does not mention it is dropped instead of aborting the whole benchmark, while rejections that survive isolation still fail loudly.
+- Matched candidate names in Mihomo rejection output at word boundaries, so short node names like "us" no longer match ordinary English words inside error text.
+- Surfaced benchmark deadline expiry as an error instead of silently publishing an empty node set, and kept the nodes measured before a partial probe failure instead of discarding them.
+- Required an auth credential for Hysteria v1 nodes and normalized flat "network: http" transport fields into http-opts.
+- Preferred the server location over the node name when they disagree in region detection.
+- Added a regression test for SSR links whose base64 password ends in "/".
+
 ## 0.2.3 - 2026-09-06
 
 - Removed the regional (HK-POOL, JP-POOL, US-POOL) and AI (AI-POOL) proxy groups, along with the AI domain rules that routed openai.com, chatgpt.com, and anthropic.com traffic. The generated subscription now ships only AUTO-FAST, ALL, FALLBACK, and PROXY, with FALLBACK chaining from AUTO-FAST to ALL as its last resort.

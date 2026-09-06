@@ -67,6 +67,31 @@ func TestBenchmarkDropsOnlyRejectedNode(t *testing.T) {
 	}
 }
 
+func TestMentionsCandidateWordBoundary(t *testing.T) {
+	// Short ASCII names must not match inside ordinary English words.
+	if mentionsCandidate("proxy status failed because this node is bad", []Candidate{{Name: "us"}}) {
+		t.Fatal("'us' matched inside an English word")
+	}
+	if mentionsCandidate("AUTOMATIC connection rejected", []Candidate{{Name: "AUT"}}) {
+		t.Fatal("prefix of a longer word matched")
+	}
+	// Token-delimited names do match.
+	if !mentionsCandidate(`FATA[0000] Parse proxy [us] error: unsupported type "vless2"`, []Candidate{{Name: "us"}}) {
+		t.Fatal("token-delimited name not matched")
+	}
+	if !mentionsCandidate(`FATA[0000] Parse proxy "US 01" error: bad cipher`, []Candidate{{Name: "US 01"}}) {
+		t.Fatal("multi-word name not matched")
+	}
+	// Names containing non-ASCII characters cannot collide with ASCII error
+	// text; they match wherever they appear.
+	if !mentionsCandidate("parse proxy [🇭🇰 香港 01] failed", []Candidate{{Name: "🇭🇰 香港 01"}}) {
+		t.Fatal("CJK name not matched")
+	}
+	if mentionsCandidate("parse proxy [xx-01] failed", []Candidate{{Name: "🇭🇰 香港 01"}}) {
+		t.Fatal("CJK name matched unrelated output")
+	}
+}
+
 func TestRunBatchAbortsOnCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -19,7 +19,10 @@ func main() {
 		return
 	}
 	if err := app.Run(*configPath); err != nil {
-		io.WriteString(os.Stderr, "Pangolin failed to start: "+err.Error()+"\nPlease fix the configuration and try again.\n")
+		// The failure is not always a configuration problem (e.g. a broken
+		// Mihomo core or a probe timeout), so keep the message neutral and
+		// let the error text speak for itself.
+		io.WriteString(os.Stderr, "Pangolin failed: "+err.Error()+"\n")
 		waitForConfirmation()
 		os.Exit(1)
 	}

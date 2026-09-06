@@ -38,10 +38,16 @@ func fields(m map[string]any) map[string]any {
 var requiredFields = map[string][]string{"ss": {"password", "cipher"}, "ssr": {"password", "cipher"}, "vmess": {"uuid"}, "vless": {"uuid"}, "trojan": {"password"}, "hysteria2": {"password"}, "tuic": {"uuid", "password"}}
 
 func hasRequired(m map[string]any, typ string) bool {
-	if typ == "hysteria2" {
+	switch typ {
+	case "hysteria2":
 		// hysteria2 accepts either a userinfo password or an auth token/
 		// credential (including the auth= query form and YAML auth-auth keys).
 		return filled(m, "password") || filled(m, "auth") || filled(m, "auth-str")
+	case "hysteria":
+		// Hysteria v1 authenticates with an auth string and has no password
+		// field; a node without any credential would be rejected by Mihomo's
+		// config check at probe time anyway.
+		return filled(m, "auth") || filled(m, "auth-str")
 	}
 	for _, key := range requiredFields[typ] {
 		if !filled(m, key) {
@@ -96,7 +102,7 @@ func normalize(items []map[string]any) []Proxy {
 		}
 		p := Proxy{Name: name, Type: typ, Server: server, Port: port, Fields: fields(m)}
 		p.Fingerprint = fingerprint(p)
-		p.Region = region(name + " " + server)
+		p.Region = region(name, server)
 		if seen[p.Fingerprint] {
 			continue
 		}
@@ -107,10 +113,10 @@ func normalize(items []map[string]any) []Proxy {
 }
 
 // normalizeTransport converts flat v2ray-style transport fields into the
-// ws-opts/h2-opts/grpc-opts maps that Mihomo consumes. If the upstream already
-// declares the canonical opts map, the legacy top-level fields are dropped so
-// the canonical form wins. This keeps flat and canonical forms of the same node
-// deduping to the same fingerprint.
+// ws-opts/h2-opts/grpc-opts/http-opts maps that Mihomo consumes. If the
+// upstream already declares the canonical opts map, the legacy top-level
+// fields are dropped so the canonical form wins. This keeps flat and canonical
+// forms of the same node deduping to the same fingerprint.
 func normalizeTransport(m map[string]any) {
 	network, _ := m["network"].(string)
 	switch network {
@@ -154,6 +160,27 @@ func normalizeTransport(m map[string]any) {
 			opts["host"] = []string{host}
 		}
 		m["h2-opts"] = opts
+		delete(m, "host")
+		delete(m, "path")
+	case "http":
+		if _, ok := m["http-opts"].(map[string]any); ok {
+			delete(m, "host")
+			delete(m, "path")
+			return
+		}
+		host, _ := m["host"].(string)
+		path, _ := m["path"].(string)
+		if host == "" && path == "" {
+			return
+		}
+		opts := map[string]any{}
+		if path != "" {
+			opts["path"] = path
+		}
+		if host != "" {
+			opts["headers"] = map[string]any{"Host": host}
+		}
+		m["http-opts"] = opts
 		delete(m, "host")
 		delete(m, "path")
 	case "grpc":
@@ -203,10 +230,12 @@ func fingerprint(p Proxy) string {
 	return fmt.Sprintf("%x", sha256.Sum256(payload))
 }
 
-// region maps a node's name/server text to a country pool using word-boundary
-// patterns plus common CJK and flag-emoji markers (mirroring the reference
-// generator's detect_region). Word boundaries keep substrings like "us" in
-// "house" or "hk" in "zhuhai" from misclassifying nodes.
+// region maps a node to a country pool from its name and server text using
+// word-boundary patterns plus common CJK and flag-emoji markers (mirroring
+// the reference generator's detect_region). Word boundaries keep substrings
+// like "us" in "house" or "hk" in "zhuhai" from misclassifying nodes. Server
+// matches count double so an unambiguous server location ("us-lax-01") wins
+// over an ambiguous name ("香港-USA"), while ties keep declaration order.
 var regionPatterns = []struct {
 	name    string
 	pattern *regexp.Regexp
@@ -216,11 +245,14 @@ var regionPatterns = []struct {
 	{"US", regexp.MustCompile(`(?i)\bus\b|\busa\b|united states|america|美国|美國|🇺🇸`)},
 }
 
-func region(s string) string {
+func region(name, server string) string {
+	best := "OTHER"
+	bestScore := 0
 	for _, group := range regionPatterns {
-		if group.pattern.MatchString(s) {
-			return group.name
+		score := 2*len(group.pattern.FindAllStringIndex(server, -1)) + len(group.pattern.FindAllStringIndex(name, -1))
+		if score > bestScore {
+			best, bestScore = group.name, score
 		}
 	}
-	return "OTHER"
+	return best
 }
