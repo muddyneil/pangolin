@@ -13,7 +13,7 @@ Pangolin is a Go-based proxy subscription generator for Mihomo and Clash-compati
 - Runs Mihomo delay checks with multiple rounds, median latency, jitter, and quality thresholds.
 - Generates regional proxy groups, AI routing groups, fallback routes, and a DIRECT fallback.
 - Validates the generated configuration with Mihomo before publishing it.
-- Provides GitHub Actions CI, a manually triggerable GitHub Pages deployment, and a daily automatic refresh.
+- Provides GitHub Actions CI, a manually triggerable GitHub Pages deployment, and an automatic refresh every two hours.
 
 ## Repository Files
 
@@ -23,7 +23,7 @@ clash.yaml                  # Generated subscription output
 cmd/pangolin                 # CLI entry point
 internal/                    # Application, source, benchmark, and subscription logic
 .github/workflows/ci.yml     # Tests, vetting, and Linux build
-.github/workflows/deploy.yml # Daily and manual subscription deployment
+.github/workflows/deploy.yml # Two-hourly and manual subscription deployment
 .github/dependabot.yml       # GitHub Actions and Go module updates
 ```
 
@@ -57,7 +57,15 @@ The generated subscription is available at:
 https://<owner>.github.io/<repository>/clash.yaml
 ```
 
-The deployment workflow requires Pages write permission and the GitHub Pages environment. It downloads the requested compatible official Mihomo Linux AMD64 release, verifies the core with a smoke test, and caches it across runs. The workflow also runs automatically every day at 04:00 UTC so the published subscription stays fresh; GitHub disables scheduled runs after 60 days without repository activity, so push a commit or trigger a manual run to keep the schedule alive.
+To trigger a deployment from a local machine without opening the Actions tab, run the provided PowerShell script (requires the [gh CLI](https://cli.github.com/) and authentication):
+
+```sh
+./run-update.ps1            # trigger deploy.yml on main and watch the run
+./run-update.ps1 -NoWait    # trigger only; print the run URL and exit
+./run-update.ps1 -MihomoVersion v1.19.1  # pin the Mihomo release tag
+```
+
+The deployment workflow requires Pages write permission and the GitHub Pages environment. It downloads the requested compatible official Mihomo Linux AMD64 release, verifies the core with a smoke test, and caches it across runs. The workflow also runs automatically every two hours (at 00:13, 02:13, ... 22:13 UTC) so the published subscription stays fresh; GitHub disables scheduled runs after 60 days without repository activity, so push a commit or trigger a manual run to keep the schedule alive.
 
 ## Local Development
 

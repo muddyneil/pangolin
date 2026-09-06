@@ -1,5 +1,9 @@
 # ChangeLog
 
+## 0.2.2 - 2026-09-08
+
+- Deployments now run automatically every two hours (at 00:13, 02:13, ... 22:13 UTC) instead of once a day, keeping the published subscription fresher. The offset from the top of the hour avoids the busiest GitHub server window.
+
 ## 0.2.1 - 2026-09-07
 
 - Deployments now run automatically every day at 04:00 UTC in addition to the manual trigger.

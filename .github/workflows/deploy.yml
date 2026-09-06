@@ -7,8 +7,10 @@ on:
         description: 'Mihomo release tag to use (default: latest)'
         required: false
         default: 'latest'
+  # Runs every two hours at the :13 mark (00:13, 02:13, ... 22:13 UTC),
+  # skipping the top of the hour when GitHub servers are busiest.
   schedule:
-    - cron: '0 4 * * *'
+    - cron: '13 */2 * * *'
 
 permissions:
   contents: read
