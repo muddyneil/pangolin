@@ -18,4 +18,4 @@
 - Run `gofmt`, `go vet ./...`, and `go test ./...` after Go changes.
 - Keep GitHub Actions changes aligned with the local commands documented in `README.md`.
 - Do not add credentials, downloaded Mihomo binaries, generated artifacts, or machine-specific files to the repository.
-- Keep documentation concise and update `ChangeLog.md` with a versioned entry for each release.
+- Keep documentation concise and update `ChangeLog.md` with a versioned entry for each release, and keep the version constant in `internal/version/version.go` in sync with the latest `ChangeLog.md` entry.
