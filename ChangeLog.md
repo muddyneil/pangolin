@@ -1,5 +1,12 @@
 # ChangeLog
 
+## 0.2.7 - 2026-09-07
+
+- Allowed pinning older Mihomo releases whose assets predate GitHub digests: the SHA-256 digest is verified when present, and a warning is emitted instead of failing the deployment when it is missing.
+- Restricted the non-compatible Mihomo asset fallback to the standard v1 main build so the go120/go123 toolchain variants are no longer picked first.
+- Added a CI test that loads the repository's `config.yaml`, so invalid runtime configuration fails the build instead of passing silently.
+- Made the update script's run lookup tolerate a full ref such as `refs/heads/main` in addition to a short branch name.
+
 ## 0.2.6 - 2026-09-07
 
 - Included `config.yaml` changes in CI so runtime configuration updates receive automated validation.

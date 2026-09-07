@@ -27,3 +27,15 @@ func TestInvalidSource(t *testing.T) {
 		t.Fatal("expected invalid URL")
 	}
 }
+
+func TestRepoConfigLoads(t *testing.T) {
+	// The repository root config.yaml is the runtime source of truth for
+	// deployments; loading it in CI keeps broken configuration from passing.
+	path := filepath.Join("..", "..", "config.yaml")
+	if _, err := os.Stat(path); err != nil {
+		t.Skip("repository config.yaml not present")
+	}
+	if _, err := Load(path); err != nil {
+		t.Fatalf("repository config.yaml failed validation: %v", err)
+	}
+}

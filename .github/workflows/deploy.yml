@@ -62,16 +62,27 @@ jobs:
           release_json="$(gh api "repos/MetaCubeX/mihomo/releases/tags/$MIHOMO_TAG")"
           asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$"))][0]' <<< "$release_json")"
           if [ "$asset_json" = "null" ]; then
-            asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-v1.*\\.gz$"))][0]' <<< "$release_json")"
+            # Standard v1 main build (mihomo-linux-amd64-v1.<tag>.gz). A broad
+            # "-v1.*" pattern would match the go120/go123 toolchain variants
+            # first, which are not the intended fallback.
+            asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-v1\\.[0-9].*\\.gz$"))][0]' <<< "$release_json")"
           fi
           asset_url="$(jq -r '.browser_download_url // empty' <<< "$asset_json")"
           asset_digest="$(jq -r '.digest // empty' <<< "$asset_json")"
           test -n "$asset_url"
-          [[ "$asset_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          if [ -n "$asset_digest" ]; then
+            [[ "$asset_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          else
+            # Older releases predate GitHub asset digests; keep them deployable
+            # but surface the missing integrity check instead of failing.
+            echo "WARNING: release $MIHOMO_TAG asset has no GitHub digest; skipping SHA-256 verification"
+          fi
           mkdir -p tools/mihomo
           curl --fail --location --retry 3 "$asset_url" --output tools/mihomo/mihomo.gz
-          expected_sha256="${asset_digest#sha256:}"
-          printf '%s  %s\n' "$expected_sha256" tools/mihomo/mihomo.gz | sha256sum --check --status
+          if [ -n "$asset_digest" ]; then
+            expected_sha256="${asset_digest#sha256:}"
+            printf '%s  %s\n' "$expected_sha256" tools/mihomo/mihomo.gz | sha256sum --check --status
+          fi
           gzip --decompress tools/mihomo/mihomo.gz
           chmod +x tools/mihomo/mihomo
       - name: Smoke-test Mihomo core

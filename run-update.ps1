@@ -83,6 +83,8 @@ function Get-TriggeredRunId {
 
     # Older gh versions may not print the run URL. Match the newly-created
     # workflow_dispatch run instead of assuming the newest run is ours.
+    # gh run list reports the short branch name, so strip a full-ref prefix.
+    $headBranch = $Ref -replace '^refs/heads/', ''
     for ($attempt = 0; $attempt -lt 12; $attempt++) {
         $runsJson = gh run list --workflow $Workflow --repo $Repo --limit 20 --json databaseId,event,headBranch,createdAt 2>$null
         if ($LASTEXITCODE -eq 0) {
@@ -91,7 +93,7 @@ function Get-TriggeredRunId {
                 $run = $runs |
                     Where-Object {
                         $_.event -eq "workflow_dispatch" -and
-                        $_.headBranch -eq $Ref -and
+                        $_.headBranch -eq $headBranch -and
                         ([datetime]$_.createdAt).ToUniversalTime() -ge $TriggeredAt.ToUniversalTime()
                     } |
                     Sort-Object { [datetime]$_.createdAt } -Descending |
