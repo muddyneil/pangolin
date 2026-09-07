@@ -2,6 +2,14 @@ package source
 
 import "testing"
 
+func TestNormalizeRejectsLocalServers(t *testing.T) {
+	for _, server := range []string{"127.0.0.1", "10.0.0.1", "::1", "localhost"} {
+		nodes := normalize([]map[string]any{{"name": "local", "type": "http", "server": server, "port": 80}})
+		if len(nodes) != 0 {
+			t.Fatalf("local server %q was accepted: %#v", server, nodes)
+		}
+	}
+}
 func TestNormalizeRejectsFractionalPort(t *testing.T) {
 	nodes := normalize([]map[string]any{{"type": "http", "server": "example.com", "port": 443.5}})
 	if len(nodes) != 0 {

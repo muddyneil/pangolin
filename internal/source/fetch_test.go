@@ -14,7 +14,7 @@ func TestFetchOneUsesFallbackAfterPrimaryFailsFast(t *testing.T) {
 	}))
 	defer primary.Close()
 	fallback := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write([]byte(`{"proxies":[{"name":"fb-1","type":"ss","server":"127.0.0.1","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
+		_, _ = writer.Write([]byte(`{"proxies":[{"name":"fb-1","type":"ss","server":"example.com","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
 	}))
 	defer fallback.Close()
 
@@ -103,11 +103,11 @@ func TestFetchRetryStopsWhenContextIsCanceledDuringBackoff(t *testing.T) {
 func TestFetchOneUsesFallbackAfterPrimaryWindowExpires(t *testing.T) {
 	primary := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		time.Sleep(4 * time.Second)
-		_, _ = writer.Write([]byte(`{"proxies":[{"name":"primary","type":"ss","server":"127.0.0.1","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
+		_, _ = writer.Write([]byte(`{"proxies":[{"name":"primary","type":"ss","server":"example.com","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
 	}))
 	defer primary.Close()
 	fallback := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write([]byte(`{"proxies":[{"name":"fallback","type":"ss","server":"127.0.0.1","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
+		_, _ = writer.Write([]byte(`{"proxies":[{"name":"fallback","type":"ss","server":"example.com","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
 	}))
 	defer fallback.Close()
 
@@ -119,7 +119,7 @@ func TestFetchOneUsesFallbackAfterPrimaryWindowExpires(t *testing.T) {
 
 func TestFetchAndNormalize(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write([]byte(`{"proxies":[{"name":"hk-1","type":"ss","server":"127.0.0.1","port":443,"cipher":"aes-256-gcm","password":"pass"},{"name":"bad","type":"unknown","server":"x","port":1}]}`))
+		_, _ = writer.Write([]byte(`{"proxies":[{"name":"hk-1","type":"ss","server":"example.com","port":443,"cipher":"aes-256-gcm","password":"pass"},{"name":"bad","type":"unknown","server":"x","port":1}]}`))
 	}))
 	defer server.Close()
 	results := FetchAll(context.Background(), []Source{{Name: "test", Primary: server.URL}})

@@ -1,5 +1,13 @@
 # ChangeLog
 
+## 0.2.8 - 2026-09-07
+
+- Preserved the last published subscription when all sources fail, quality probing fails, coverage is incomplete, or no node passes validation.
+- Rejected local and private source URLs and proxy server addresses before fetching or benchmarking.
+- Required a GitHub-provided SHA-256 digest for downloaded Mihomo releases.
+- Pinned GitHub Actions to immutable commit SHAs.
+- Completed the pre-release security audit and verified 73 tests, `go vet ./...`, formatting checks, and `go test -race ./...` with CGO enabled.
+
 ## 0.2.7 - 2026-09-07
 
 - Allowed pinning older Mihomo releases whose assets predate GitHub digests: the SHA-256 digest is verified when present, and a warning is emitted instead of failing the deployment when it is missing.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -80,7 +81,7 @@ func normalize(items []map[string]any) []Proxy {
 		if name == "" {
 			name = fmt.Sprintf("node-%d", len(out)+1)
 		}
-		if !allowed[typ] || server == "" || port < 1 || port > 65535 {
+		if !validServer(server) || !allowed[typ] || server == "" || port < 1 || port > 65535 {
 			continue
 		}
 		if !hasRequired(m, typ) {
@@ -218,6 +219,17 @@ func number(v any) int {
 	}
 	return 0
 }
+func validServer(server string) bool {
+	host := strings.TrimSpace(server)
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return !ip.IsLoopback() && !ip.IsPrivate() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsUnspecified()
+	}
+	return !strings.EqualFold(host, "localhost") && !strings.HasSuffix(strings.ToLower(host), ".localhost") && !strings.HasSuffix(strings.ToLower(host), ".local")
+}
+
 func fingerprint(p Proxy) string {
 	identity := make(map[string]any, len(p.Fields)+3)
 	for key, value := range p.Fields {

@@ -28,6 +28,17 @@ func TestInvalidSource(t *testing.T) {
 	}
 }
 
+func TestRejectsLocalSource(t *testing.T) {
+	for _, raw := range []string{"http://127.0.0.1/feed", "https://10.0.0.1/feed", "http://localhost/feed", "http://[::1]/feed"} {
+		t.Run(raw, func(t *testing.T) {
+			cfg := Config{Sources: []Source{{Name: "x", Primary: raw}}}
+			if err := cfg.Validate("config.yaml"); err == nil {
+				t.Fatalf("expected local URL to be rejected: %s", raw)
+			}
+		})
+	}
+}
+
 func TestRepoConfigLoads(t *testing.T) {
 	// The repository root config.yaml is the runtime source of truth for
 	// deployments; loading it in CI keeps broken configuration from passing.

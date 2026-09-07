@@ -55,6 +55,12 @@ func Run(configPath string) error {
 			failureDetails = append(failureDetails, result.Source+": "+result.Err.Error())
 		}
 	}
+	if failedSources == len(sources) {
+		return fmt.Errorf("all %d subscription sources failed; existing output was preserved", len(sources))
+	}
+	if len(merged) == 0 {
+		return fmt.Errorf("no usable proxy nodes were fetched; existing output was preserved")
+	}
 	nodes := make([]subscription.Proxy, 0, len(merged))
 	for _, node := range merged {
 		nodes = append(nodes, subscription.Proxy{Name: node.Name, Type: node.Type, Server: node.Server, Port: node.Port, Fields: node.Fields, Region: node.Region})
@@ -80,19 +86,12 @@ func Run(configPath string) error {
 		metrics, dropped, err := benchmark.Benchmark(benchmarkCtx, corePath, proxyMaps, candidates, probeConfig)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				// A timed-out benchmark left the unmeasured nodes with all-zero
-				// metrics; publishing them as ineligible would silently wipe the
-				// pool, so fail loudly instead of producing an empty subscription.
-				return fmt.Errorf("node quality probe exceeded its %s budget and was cancelled; nothing was published: %w", benchmarkTimeout, err)
+				return fmt.Errorf("node quality probe exceeded its %s budget and was cancelled; existing output was preserved: %w", benchmarkTimeout, err)
 			}
-			if len(metrics) == 0 {
-				return fmt.Errorf("node quality probe failed: %w", err)
-			}
-			// Keep the nodes measured before an engine-level failure instead of
-			// discarding them: a partial probe result is more useful than an
-			// empty subscription, and the failure is reported so the operator
-			// can see the run was not a clean sweep.
-			io.WriteString(os.Stdout, fmt.Sprintf("WARNING: node quality probe failed for part of the candidate set; continuing with the %d nodes measured before the failure: %v\n", len(metrics), err))
+			return fmt.Errorf("node quality probe failed; existing output was preserved: %w", err)
+		}
+		if len(metrics)+len(dropped) != len(nodes) {
+			return fmt.Errorf("node quality probe accounted for %d of %d candidates; existing output was preserved", len(metrics)+len(dropped), len(nodes))
 		}
 		if len(dropped) > 0 {
 			io.WriteString(os.Stdout, fmt.Sprintf("Dropped %d nodes rejected by Mihomo configuration: %s\n", len(dropped), strings.Join(dropped, ", ")))
@@ -119,6 +118,9 @@ func Run(configPath string) error {
 		})
 		nodes = published
 		publishedCount = len(nodes)
+		if publishedCount == 0 {
+			return fmt.Errorf("no proxy nodes passed quality checks; existing output was preserved")
+		}
 	}
 	out, err := subscription.Marshal(subscription.Build(nodes))
 	if err != nil {

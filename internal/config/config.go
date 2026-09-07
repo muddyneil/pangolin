@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -62,10 +63,21 @@ func parse(data []byte, cfg *Config) error {
 
 func validateURL(raw string) error {
 	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Hostname() == "" {
 		return errors.New("must be an HTTP or HTTPS URL with a hostname")
 	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") {
+		return errors.New("must not target a local hostname")
+	}
+	if ip := net.ParseIP(host); ip != nil && isPrivateIP(ip) {
+		return errors.New("must not target a private or local IP address")
+	}
 	return nil
+}
+
+func isPrivateIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified()
 }
 
 func ValidateMihomo(path string) error {
