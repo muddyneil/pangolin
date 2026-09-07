@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 1.0.0 - 2026-09-08
+
+- Prevented subscription downloads from connecting to DNS-resolved private, loopback, link-local, multicast, or unspecified addresses, including redirect targets, and rejected proxy nodes resolving to those addresses before Mihomo benchmarking.
+- Bound the cached Mihomo core to its GitHub-provided SHA-256 digest and revalidated the cached release archive on every cache hit.
+- Documented Clang-based CGO race testing for Windows environments without GCC and verified 80 tests, `go vet ./...`, formatting checks, and `go test -race ./...` with Clang.
+
 ## 0.2.9 - 2026-09-07
 
 - Upgraded every pinned GitHub Action to a runtime based on Node.js 24, fixing the deprecation of Node.js 20 on GitHub-hosted runners: `actions/checkout` v7.0.1, `actions/setup-go` v7.0.0, `actions/upload-artifact` v7.0.1, `actions/cache` v6.1.0, `actions/upload-pages-artifact` v5.0.0, and `actions/deploy-pages` v5.0.1.
@@ -48,11 +54,11 @@
 
 - Removed the regional (HK-POOL, JP-POOL, US-POOL) and AI (AI-POOL) proxy groups, along with the AI domain rules that routed openai.com, chatgpt.com, and anthropic.com traffic. The generated subscription now ships only AUTO-FAST, ALL, FALLBACK, and PROXY, with FALLBACK chaining from AUTO-FAST to ALL as its last resort.
 
-## 0.2.2 - 2026-09-08
+## 0.2.2 - 2026-09-06
 
 - Deployments now run automatically every two hours (at 00:13, 02:13, ... 22:13 UTC) instead of once a day, keeping the published subscription fresher. The offset from the top of the hour avoids the busiest GitHub server window.
 
-## 0.2.1 - 2026-09-07
+## 0.2.1 - 2026-09-06
 
 - Deployments now run automatically every day at 04:00 UTC in addition to the manual trigger.
 - Added a `mihomo_version` workflow input to pin the Mihomo release tag (latest by default) and a smoke test that verifies the downloaded core before generation.

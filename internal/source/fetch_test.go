@@ -8,7 +8,15 @@ import (
 	"time"
 )
 
+func useTestHTTPClient(t *testing.T) {
+	t.Helper()
+	previous := publicHTTPClient
+	publicHTTPClient = http.DefaultClient
+	t.Cleanup(func() { publicHTTPClient = previous })
+}
+
 func TestFetchOneUsesFallbackAfterPrimaryFailsFast(t *testing.T) {
+	useTestHTTPClient(t)
 	primary := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, "not found", http.StatusNotFound)
 	}))
@@ -28,6 +36,7 @@ func TestFetchOneUsesFallbackAfterPrimaryFailsFast(t *testing.T) {
 }
 
 func TestFetchFailsFastOnClientError(t *testing.T) {
+	useTestHTTPClient(t)
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		calls++
@@ -45,6 +54,7 @@ func TestFetchFailsFastOnClientError(t *testing.T) {
 }
 
 func TestFetchRetriesTransientHTTPStatuses(t *testing.T) {
+	useTestHTTPClient(t)
 	for _, status := range []int{http.StatusRequestTimeout, http.StatusTooManyRequests} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			calls := 0
@@ -70,6 +80,7 @@ func TestFetchRetriesTransientHTTPStatuses(t *testing.T) {
 }
 
 func TestFetchRetryStopsWhenContextIsCanceledDuringBackoff(t *testing.T) {
+	useTestHTTPClient(t)
 	calls := 0
 	firstRequest := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -101,6 +112,7 @@ func TestFetchRetryStopsWhenContextIsCanceledDuringBackoff(t *testing.T) {
 }
 
 func TestFetchOneUsesFallbackAfterPrimaryWindowExpires(t *testing.T) {
+	useTestHTTPClient(t)
 	primary := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		time.Sleep(4 * time.Second)
 		_, _ = writer.Write([]byte(`{"proxies":[{"name":"primary","type":"ss","server":"example.com","port":443,"cipher":"aes-256-gcm","password":"pass"}]}`))
@@ -118,6 +130,7 @@ func TestFetchOneUsesFallbackAfterPrimaryWindowExpires(t *testing.T) {
 }
 
 func TestFetchAndNormalize(t *testing.T) {
+	useTestHTTPClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		_, _ = writer.Write([]byte(`{"proxies":[{"name":"hk-1","type":"ss","server":"example.com","port":443,"cipher":"aes-256-gcm","password":"pass"},{"name":"bad","type":"unknown","server":"x","port":1}]}`))
 	}))

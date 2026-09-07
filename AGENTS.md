@@ -15,7 +15,7 @@
 - Keep user-facing documentation and CLI messages in English unless a localized interface is explicitly requested.
 - Treat `config.yaml` as the source configuration and `clash.yaml` as generated output; do not commit generated subscription changes unless they are intentionally being published.
 - Preserve protocol semantics when parsing or normalizing nodes. Add focused tests for every new protocol field or URI form.
-- Run `gofmt`, `go vet ./...`, and `go test ./...` after Go changes.
+- Run `gofmt`, `go vet ./...`, and `go test ./...` after Go changes. For race detection, run `CC=clang CGO_ENABLED=1 go test -race ./...` when `gcc` is unavailable; a missing default C compiler is an environment issue, not a race-test failure.
 - Keep GitHub Actions changes aligned with the local commands documented in `README.md`.
 - Do not add credentials, downloaded Mihomo binaries, generated artifacts, or machine-specific files to the repository.
 - Keep documentation concise and update `ChangeLog.md` with a versioned entry for each release, and keep the version constant in `internal/version/version.go` in sync with the latest `ChangeLog.md` entry.

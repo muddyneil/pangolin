@@ -61,6 +61,20 @@ func Run(configPath string) error {
 	if len(merged) == 0 {
 		return fmt.Errorf("no usable proxy nodes were fetched; existing output was preserved")
 	}
+	publicNodes := make([]source.Proxy, 0, len(merged))
+	serverCtx, cancelServerCheck := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelServerCheck()
+	for _, node := range merged {
+		if err := source.PublicHost(serverCtx, node.Server); err != nil {
+			io.WriteString(os.Stdout, fmt.Sprintf("Dropped node %q: %s\n", node.Name, err))
+			continue
+		}
+		publicNodes = append(publicNodes, node)
+	}
+	merged = publicNodes
+	if len(merged) == 0 {
+		return fmt.Errorf("no proxy nodes with public server addresses were fetched; existing output was preserved")
+	}
 	nodes := make([]subscription.Proxy, 0, len(merged))
 	for _, node := range merged {
 		nodes = append(nodes, subscription.Proxy{Name: node.Name, Type: node.Type, Server: node.Server, Port: node.Port, Fields: node.Fields, Region: node.Region})

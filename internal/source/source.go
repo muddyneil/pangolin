@@ -201,13 +201,15 @@ func retryableStatus(status int) bool {
 	return status == http.StatusRequestTimeout || status == http.StatusTooEarly || status == http.StatusTooManyRequests || status >= 500
 }
 
+var publicHTTPClient = &http.Client{Transport: &http.Transport{DialContext: PublicDialContext}}
+
 func fetch(ctx context.Context, raw string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("pangolin/%s", version.Version))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := publicHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

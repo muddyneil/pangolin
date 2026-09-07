@@ -46,42 +46,46 @@ jobs:
             tag="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.tag_name')"
           fi
           [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Cache Mihomo core
-        id: core-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: tools/mihomo
-          key: mihomo-${{ steps.version.outputs.tag }}
-      - name: Download official Mihomo core
-        if: steps.core-cache.outputs.cache-hit != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MIHOMO_TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          release_json="$(gh api "repos/MetaCubeX/mihomo/releases/tags/$MIHOMO_TAG")"
+          release_json="$(gh api repos/MetaCubeX/mihomo/releases/tags/$tag)"
           asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$"))][0]' <<< "$release_json")"
           if [ "$asset_json" = "null" ]; then
-            # Standard v1 main build (mihomo-linux-amd64-v1.<tag>.gz). A broad
-            # "-v1.*" pattern would match the go120/go123 toolchain variants
-            # first, which are not the intended fallback.
             asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-v1\\.[0-9].*\\.gz$"))][0]' <<< "$release_json")"
           fi
           asset_url="$(jq -r '.browser_download_url // empty' <<< "$asset_json")"
           asset_digest="$(jq -r '.digest // empty' <<< "$asset_json")"
           test -n "$asset_url"
-          if [ -z "$asset_digest" ]; then
-            echo "ERROR: release $MIHOMO_TAG asset has no GitHub SHA-256 digest"
-            exit 1
-          fi
           [[ "$asset_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          {
+            echo "tag=$tag"
+            echo "asset_url=$asset_url"
+            echo "asset_digest=$asset_digest"
+          } >> "$GITHUB_OUTPUT"
+      - name: Cache Mihomo core
+        id: core-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/mihomo
+          key: mihomo-${{ steps.version.outputs.tag }}-${{ steps.version.outputs.asset_digest }}
+      - name: Verify cached Mihomo core
+        if: steps.core-cache.outputs.cache-hit == 'true'
+        env:
+          MIHOMO_DIGEST: ${{ steps.version.outputs.asset_digest }}
+        run: |
+          test -f tools/mihomo/mihomo.gz
+          expected_sha256="${MIHOMO_DIGEST#sha256:}"
+          printf '%s  %s\n' "$expected_sha256" tools/mihomo/mihomo.gz | sha256sum --check --status
+      - name: Download official Mihomo core
+        if: steps.core-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MIHOMO_URL: ${{ steps.version.outputs.asset_url }}
+          MIHOMO_DIGEST: ${{ steps.version.outputs.asset_digest }}
+        run: |
           mkdir -p tools/mihomo
-          curl --fail --location --retry 3 "$asset_url" --output tools/mihomo/mihomo.gz
-          if [ -n "$asset_digest" ]; then
-            expected_sha256="${asset_digest#sha256:}"
-            printf '%s  %s\n' "$expected_sha256" tools/mihomo/mihomo.gz | sha256sum --check --status
-          fi
-          gzip --decompress tools/mihomo/mihomo.gz
+          curl --fail --location --retry 3 "$MIHOMO_URL" --output tools/mihomo/mihomo.gz
+          expected_sha256="${MIHOMO_DIGEST#sha256:}"
+          printf '%s  %s\n' "$expected_sha256" tools/mihomo/mihomo.gz | sha256sum --check --status
+          gzip --decompress --keep tools/mihomo/mihomo.gz
           chmod +x tools/mihomo/mihomo
       - name: Smoke-test Mihomo core
         run: tools/mihomo/mihomo -v
