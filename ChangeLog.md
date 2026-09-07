@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 0.2.9 - 2026-09-07
+
+- Upgraded every pinned GitHub Action to a runtime based on Node.js 24, fixing the deprecation of Node.js 20 on GitHub-hosted runners: `actions/checkout` v7.0.1, `actions/setup-go` v7.0.0, `actions/upload-artifact` v7.0.1, `actions/cache` v6.1.0, `actions/upload-pages-artifact` v5.0.0, and `actions/deploy-pages` v5.0.1.
+- Kept all GitHub Actions pinned to immutable commit SHAs, including the `actions/upload-artifact` step nested inside `actions/upload-pages-artifact`.
+
 ## 0.2.8 - 2026-09-07
 
 - Preserved the last published subscription when all sources fail, quality probing fails, coverage is incomplete, or no node passes validation.
