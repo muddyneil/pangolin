@@ -38,13 +38,14 @@ jobs:
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
+          MIHOMO_VERSION_INPUT: ${{ inputs.mihomo_version }}
         run: |
-          tag="${{ inputs.mihomo_version }}"
+          tag="$MIHOMO_VERSION_INPUT"
           # Scheduled runs provide no inputs, so an empty value means latest.
           if [ -z "$tag" ] || [ "$tag" = "latest" ]; then
             tag="$(gh api repos/MetaCubeX/mihomo/releases/latest --jq '.tag_name')"
           fi
-          test -n "$tag"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Cache Mihomo core
         id: core-cache
@@ -56,20 +57,21 @@ jobs:
         if: steps.core-cache.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          MIHOMO_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          # The trailing || true keeps a transient gh api failure (rate limit,
-          # network hiccup) from killing the script under set -e before the
-          # fallback and the fail-fast test below get a chance to run.
-          asset_url="$(gh api "repos/MetaCubeX/mihomo/releases/tags/${{ steps.version.outputs.tag }}" --jq '.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$")) | .browser_download_url' | head -n 1 || true)"
-          if [ -z "$asset_url" ]; then
-            # Compatible build unavailable: fall back to an explicit amd64 v1
-            # build. A broad "^mihomo-linux-amd64.*" pattern would match the
-            # compatible build first anyway (it sorts before the v1 assets).
-            asset_url="$(gh api "repos/MetaCubeX/mihomo/releases/tags/${{ steps.version.outputs.tag }}" --jq '.assets[] | select(.name | test("^mihomo-linux-amd64-v1.*\\.gz$")) | .browser_download_url' | head -n 1 || true)"
+          release_json="$(gh api "repos/MetaCubeX/mihomo/releases/tags/$MIHOMO_TAG")"
+          asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-compatible.*\\.gz$"))][0]' <<< "$release_json")"
+          if [ "$asset_json" = "null" ]; then
+            asset_json="$(jq -c '[.assets[] | select(.name | test("^mihomo-linux-amd64-v1.*\\.gz$"))][0]' <<< "$release_json")"
           fi
+          asset_url="$(jq -r '.browser_download_url // empty' <<< "$asset_json")"
+          asset_digest="$(jq -r '.digest // empty' <<< "$asset_json")"
           test -n "$asset_url"
+          [[ "$asset_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           mkdir -p tools/mihomo
           curl --fail --location --retry 3 "$asset_url" --output tools/mihomo/mihomo.gz
+          expected_sha256="${asset_digest#sha256:}"
+          printf '%s  %s\n' "$expected_sha256" tools/mihomo/mihomo.gz | sha256sum --check --status
           gzip --decompress tools/mihomo/mihomo.gz
           chmod +x tools/mihomo/mihomo
       - name: Smoke-test Mihomo core

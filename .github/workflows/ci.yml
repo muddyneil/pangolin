@@ -4,12 +4,10 @@ on:
   push:
     paths-ignore:
       - '*.md'
-      - 'config.yaml'
       - '.gitignore'
   pull_request:
     paths-ignore:
       - '*.md'
-      - 'config.yaml'
       - '.gitignore'
 
 permissions:

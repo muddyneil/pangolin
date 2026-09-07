@@ -1,5 +1,12 @@
 # ChangeLog
 
+## 0.2.6 - 2026-09-07
+
+- Included `config.yaml` changes in CI so runtime configuration updates receive automated validation.
+- Prevented shell injection through the manual `mihomo_version` workflow input by passing it through environment variables and validating release tags.
+- Verified downloaded Mihomo release assets with their GitHub-provided SHA-256 digest before execution.
+- Fixed the update script's workflow run lookup so it matches the triggered run by event, ref, and creation time instead of assuming the newest run is the correct one.
+
 ## 0.2.5 - 2026-09-07
 
 - Fixed empty subscriptions to use Mihomo's built-in DIRECT proxy instead of a non-functional `127.0.0.1:1` SOCKS5 placeholder.

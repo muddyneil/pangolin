@@ -66,12 +66,14 @@ function Assert-GhAvailable {
 }
 
 # Extract the run id from gh workflow run output (the run URL), with a fallback
-# to the newest run of this workflow if the URL is not printed (older gh versions).
+# that polls for the matching workflow_dispatch run if the URL is not printed.
 function Get-TriggeredRunId {
     param(
         [string]$TriggerOutput,
         [string]$Repo,
-        [string]$Workflow
+        [string]$Workflow,
+        [datetime]$TriggeredAt,
+        [string]$Ref
     )
 
     $match = [regex]::Match($TriggerOutput, 'actions/runs/(\d+)')
@@ -79,9 +81,29 @@ function Get-TriggeredRunId {
         return $match.Groups[1].Value
     }
 
-    $id = gh run list --workflow $Workflow --repo $Repo --limit 1 --json databaseId --jq '.[0].databaseId' 2>$null
-    if ($LASTEXITCODE -eq 0 -and $id -match '^\d+$') {
-        return $id
+    # Older gh versions may not print the run URL. Match the newly-created
+    # workflow_dispatch run instead of assuming the newest run is ours.
+    for ($attempt = 0; $attempt -lt 12; $attempt++) {
+        $runsJson = gh run list --workflow $Workflow --repo $Repo --limit 20 --json databaseId,event,headBranch,createdAt 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            try {
+                $runs = @(ConvertFrom-Json ($runsJson -join "`n"))
+                $run = $runs |
+                    Where-Object {
+                        $_.event -eq "workflow_dispatch" -and
+                        $_.headBranch -eq $Ref -and
+                        ([datetime]$_.createdAt).ToUniversalTime() -ge $TriggeredAt.ToUniversalTime()
+                    } |
+                    Sort-Object { [datetime]$_.createdAt } -Descending |
+                    Select-Object -First 1
+                if ($null -ne $run) {
+                    return [string]$run.databaseId
+                }
+            } catch {
+                # The run list can be briefly incomplete while GitHub creates it.
+            }
+        }
+        Start-Sleep -Seconds 5
     }
 
     throw "Could not determine the triggered run id from: $TriggerOutput"
@@ -90,13 +112,14 @@ function Get-TriggeredRunId {
 Assert-GhAvailable
 
 Write-Host "Triggering workflow '$Workflow' on $Repo (ref: $Ref, mihomo_version: $MihomoVersion) ..." -ForegroundColor Cyan
+$triggeredAt = [datetime]::UtcNow
 $output = gh workflow run "$Workflow" --repo $Repo --ref $Ref -f "mihomo_version=$MihomoVersion" 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to trigger the workflow:`n$output"
     exit 1
 }
 
-$runId = Get-TriggeredRunId -TriggerOutput ($output -join "`n") -Repo $Repo -Workflow $Workflow
+$runId = Get-TriggeredRunId -TriggerOutput ($output -join "`n") -Repo $Repo -Workflow $Workflow -TriggeredAt $triggeredAt -Ref $Ref
 $runUrl = "https://github.com/$Repo/actions/runs/$runId"
 Write-Host "Run started: $runUrl" -ForegroundColor Green
 
