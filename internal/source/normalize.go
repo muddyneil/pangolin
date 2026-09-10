@@ -72,8 +72,10 @@ func normalize(items []map[string]any) []Proxy {
 			continue
 		}
 		name, _ := m["name"].(string)
+		name = strings.TrimSpace(name)
 		typ := strings.ToLower(strings.TrimSpace(fmt.Sprint(m["type"])))
 		server, _ := m["server"].(string)
+		server = strings.TrimSpace(server)
 		port := number(m["port"])
 		if typ == "hy2" {
 			typ = "hysteria2"

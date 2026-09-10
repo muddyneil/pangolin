@@ -62,10 +62,16 @@ func Run(configPath string) error {
 		return fmt.Errorf("no usable proxy nodes were fetched; existing output was preserved")
 	}
 	publicNodes := make([]source.Proxy, 0, len(merged))
-	serverCtx, cancelServerCheck := context.WithTimeout(context.Background(), 10*time.Second)
+	serverCtx, cancelServerCheck := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancelServerCheck()
 	for _, node := range merged {
-		if err := source.PublicHost(serverCtx, node.Server); err != nil {
+		// A per-node deadline keeps one slow resolver from silently dropping
+		// the tail of the pool; the overall budget only bounds a global DNS
+		// outage wasting the whole run.
+		nodeCtx, cancelNode := context.WithTimeout(serverCtx, 2*time.Second)
+		err := source.PublicHost(nodeCtx, node.Server)
+		cancelNode()
+		if err != nil {
 			io.WriteString(os.Stdout, fmt.Sprintf("Dropped node %q: %s\n", node.Name, err))
 			continue
 		}
@@ -153,12 +159,9 @@ func Run(configPath string) error {
 			regions[node.Region] = true
 		}
 	}
-	message := "Subscription generated"
-	if len(nodes) == 0 {
-		message += " (no usable nodes; using DIRECT)"
-	} else {
-		message += fmt.Sprintf(" (%d nodes connected)", len(nodes))
-	}
+	// Every empty-set path has already returned with an error above, so the
+	// summary always describes a non-empty node set.
+	message := fmt.Sprintf("Subscription generated (%d nodes)", len(nodes))
 	io.WriteString(os.Stdout, fmt.Sprintf("Pangolin %s %s\nSources: %d (failed %d)\nCandidates: %d, published: %d, regions: %d\nOutput: %s\n", version.Version, message, len(sources), failedSources, candidateCount, publishedCount, len(regions), outputPath))
 	if len(failureDetails) > 0 {
 		io.WriteString(os.Stdout, "Source failure details: "+strings.Join(failureDetails, "; ")+"\n")

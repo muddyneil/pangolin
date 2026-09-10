@@ -199,3 +199,19 @@ func TestParseURIsIgnoresMalformedEntries(t *testing.T) {
 		t.Fatalf("unexpected URI result: %v %#v", err, proxies)
 	}
 }
+
+func TestParseHysteriaUserinfoAuth(t *testing.T) {
+	proxy, err := parseURI("hysteria://my-auth@example.com:443?up=20&down=100")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proxy["auth"] != "my-auth" || proxy["up"] != "20" || proxy["down"] != "100" {
+		t.Fatalf("unexpected hysteria proxy: %#v", proxy)
+	}
+	// The userinfo secret must survive normalization as auth, not password,
+	// or hasRequired would reject the node.
+	nodes := normalize([]map[string]any{proxy})
+	if len(nodes) != 1 || nodes[0].Fields["auth"] != "my-auth" {
+		t.Fatalf("hysteria node was rejected during normalization: %#v", nodes)
+	}
+}

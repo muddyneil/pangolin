@@ -1,5 +1,14 @@
 # ChangeLog
 
+## 1.0.1 - 2026-09-10
+
+- Gave public-host validation a per-node two-second deadline instead of one shared ten-second budget, so a slow resolver no longer silently drops the tail of the node pool; a two-minute overall budget still bounds a global DNS outage.
+- Fixed hysteria:// URI parsing so the userinfo secret lands in the auth field, keeping Hysteria v1 nodes readable instead of dropping them at normalization.
+- Reserved one full isolation pass (benchmarkBatchSize probes plus per-node startup) in the benchmark timeout estimate, so a rejected batch that names no candidate no longer blows the deadline and aborts the healthy remainder.
+- Trimmed node name and server whitespace during normalization so padded YAML/JSON entries are not later rejected by Mihomo and do not pollute the published subscription.
+- Preserved the original parse error when a subscription body yields no proxy nodes instead of replacing it with a generic message.
+- Restricted the proxies: block extractor to a top-level key so a nested mapping is not mistaken for a subscription body.
+
 ## 1.0.0 - 2026-09-08
 
 - Prevented subscription downloads from connecting to DNS-resolved private, loopback, link-local, multicast, or unspecified addresses, including redirect targets, and rejected proxy nodes resolving to those addresses before Mihomo benchmarking.

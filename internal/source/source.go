@@ -70,10 +70,12 @@ func fetchOne(ctx context.Context, src Source) FetchResult {
 		if err != nil {
 			return FetchResult{Source: src.Name, Err: err}
 		}
-		proxies, err := parse(data)
-		if err != nil || len(proxies) == 0 {
-			err = fmt.Errorf("no proxy nodes found")
-			return FetchResult{Source: src.Name, Err: err}
+		proxies, parseErr := parse(data)
+		if parseErr != nil {
+			return FetchResult{Source: src.Name, Err: parseErr}
+		}
+		if len(proxies) == 0 {
+			return FetchResult{Source: src.Name, Err: fmt.Errorf("no proxy nodes found")}
 		}
 		return FetchResult{Source: src.Name, Proxies: normalize(proxies)}
 	}
@@ -129,10 +131,14 @@ func fetchOne(ctx context.Context, src Source) FetchResult {
 				continue
 			}
 			if len(item.proxies) == 0 {
-				if item.index == 0 {
-					primaryErr = fmt.Errorf("no proxy nodes found")
+				err := item.err
+				if err == nil {
+					err = fmt.Errorf("no proxy nodes found")
 				}
-				last = fmt.Errorf("no proxy nodes found")
+				if item.index == 0 {
+					primaryErr = err
+				}
+				last = err
 				if item.index == 0 {
 					preferPrimary = false
 				}
@@ -270,7 +276,10 @@ func extractProxyBlock(text string) []map[string]any {
 	lines := strings.Split(text, "\n")
 	start := -1
 	for index, line := range lines {
-		if strings.TrimSpace(line) == "proxies:" {
+		// Only a top-level "proxies:" key is a proxy list; a nested one under
+		// another mapping belongs to a different document shape and must not
+		// be extracted as a subscription body.
+		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") && strings.TrimSpace(line) == "proxies:" {
 			start = index
 			break
 		}
@@ -320,6 +329,9 @@ func parseURI(raw string) (map[string]any, error) {
 		return parseSSURI(raw)
 	case "ssr":
 		return parseSSRURI(raw)
+	// The remaining supported schemes share the generic URL parsing below;
+	// this group intentionally carries an empty body and falls out of the
+	// switch, while unsupported schemes hit the default error.
 	case "trojan", "vless", "hysteria", "hysteria2", "hy2", "tuic", "socks5", "http", "https":
 	default:
 		return nil, fmt.Errorf("unsupported proxy protocol: %s", scheme)
@@ -345,6 +357,10 @@ func parseURI(raw string) (map[string]any, error) {
 				result["uuid"] = username
 			case "http", "https", "socks5":
 				result["username"] = username
+			case "hysteria":
+				// Hysteria v1 authenticates via auth/auth-str; the userinfo
+				// secret must land there or normalize() drops the node.
+				result["auth"] = username
 			default:
 				result["password"] = username
 			}

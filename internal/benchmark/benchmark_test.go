@@ -18,16 +18,19 @@ import (
 // the controller client deadline must stay above the per-URL delay budget so
 // Mihomo's own budget, not the client, decides a failed probe. Tuning either
 // value without adjusting the other breaks the reference behavior.
-func TestEstimatedTimeoutUsesActualBatchWaves(t *testing.T) {
+func TestEstimatedTimeoutReservesIsolationPass(t *testing.T) {
 	cfg := DefaultConfig()
 	got := EstimatedTimeout(1000, cfg)
-	want := 17 * time.Minute
+	// Normal path: 10 batches x 5 waves x 3 rounds x 3 URLs x 2s = 15 min.
+	// One full isolation pass: 100 nodes x (9 probes x 2s + 1s startup).
+	// Plus the 2-minute startup/validation reserve.
+	want := 15*time.Minute + 100*(9*2*time.Second+time.Second) + 2*time.Minute
 	if got != want {
 		t.Fatalf("EstimatedTimeout(1000) = %v, want %v", got, want)
 	}
 	got = EstimatedTimeout(2000, cfg)
 	if got <= want {
-		t.Fatalf("EstimatedTimeout(2000) = %v, want above floor", got)
+		t.Fatalf("EstimatedTimeout(2000) = %v, want above %v", got, want)
 	}
 }
 

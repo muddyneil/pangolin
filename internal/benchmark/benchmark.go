@@ -65,7 +65,11 @@ func DefaultConfig() Config {
 }
 
 // EstimatedTimeout accounts for the actual benchmark batch size and worker
-// waves. The floor covers startup and config-validation overhead.
+// waves. A rejected batch is re-probed node by node (isolate), so the budget
+// also reserves one full isolation pass (benchmarkBatchSize probes plus one
+// engine startup per node); without it a malformed-but-unnamed batch would
+// blow the deadline and abort the healthy remainder. The remaining floor
+// covers startup and config-validation overhead.
 func EstimatedTimeout(candidateCount int, cfg Config) time.Duration {
 	if candidateCount <= 0 {
 		return 15 * time.Minute
@@ -81,6 +85,8 @@ func EstimatedTimeout(candidateCount int, cfg Config) time.Duration {
 	batches := (candidateCount + benchmarkBatchSize - 1) / benchmarkBatchSize
 	waves := (benchmarkBatchSize + probeWorkers - 1) / probeWorkers
 	budget := time.Duration(batches*waves*probeTimes*len(cfg.URLs)) * probeTimeout
+	probeCost := time.Duration(probeTimes*len(cfg.URLs)) * probeTimeout
+	budget += time.Duration(benchmarkBatchSize)*probeCost + benchmarkBatchSize*time.Second
 	if budget < 15*time.Minute {
 		return 15 * time.Minute
 	}
