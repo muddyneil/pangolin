@@ -1,5 +1,9 @@
 # ChangeLog
 
+## 1.0.2 - 2026-11-26
+
+- Retried `actions/deploy-pages` once when the first attempt fails, so an artifact that is not yet visible to the artifact listing right after `actions/upload-pages-artifact` finalizes it no longer fails the deployment with `No artifacts named "github-pages"` (actions/deploy-pages#451). A failed attempt uploads nothing, so the step retry is safe, unlike re-running the job, which would add a second `github-pages` artifact.
+
 ## 1.0.1 - 2026-09-10
 
 - Gave public-host validation a per-node two-second deadline instead of one shared ten-second budget, so a slow resolver no longer silently drops the tail of the node pool; a two-minute overall budget still bounds a global DNS outage.

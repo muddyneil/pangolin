@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 90
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
@@ -98,5 +98,14 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: public
+      # The artifact can take a moment to become visible to deploy-pages right
+      # after upload-pages-artifact finalizes it, which fails the lookup with
+      # "No artifacts named github-pages" (actions/deploy-pages#451). A failed
+      # attempt uploads nothing, so retrying the step is safe; re-running the
+      # whole job instead would add a second github-pages artifact.
       - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        continue-on-error: true
+      - id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
