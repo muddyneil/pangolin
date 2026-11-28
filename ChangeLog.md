@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 1.0.3 - 2026-11-28
+
+- Waited for the `github-pages` artifact to appear in the run's artifact listing before deploying, so a slow artifact listing no longer fails the deployment with `No artifacts named "github-pages"` (actions/deploy-pages#451). The previous immediate retry only covered a sub-second visibility lag and still failed a run whose lag was longer.
+- Removed the second `actions/deploy-pages` step, so a real deployment failure is no longer masked by `continue-on-error` and a retry.
+
 ## 1.0.2 - 2026-11-26
 
 - Retried `actions/deploy-pages` once when the first attempt fails, so an artifact that is not yet visible to the artifact listing right after `actions/upload-pages-artifact` finalizes it no longer fails the deployment with `No artifacts named "github-pages"` (actions/deploy-pages#451). A failed attempt uploads nothing, so the step retry is safe, unlike re-running the job, which would add a second `github-pages` artifact.
