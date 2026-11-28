@@ -2,8 +2,8 @@
 
 ## 1.0.3 - 2026-11-28
 
-- Waited for the `github-pages` artifact to appear in the run's artifact listing before deploying, so a slow artifact listing no longer fails the deployment with `No artifacts named "github-pages"` (actions/deploy-pages#451). The previous immediate retry only covered a sub-second visibility lag and still failed a run whose lag was longer.
-- Removed the second `actions/deploy-pages` step, so a real deployment failure is no longer masked by `continue-on-error` and a retry.
+- Waited for the Actions artifact service to settle before deploying and kept one retry with a 30-second backoff, so a `github-pages` artifact that is finalized but not yet listable no longer fails the deployment with `No artifacts named "github-pages"` (actions/deploy-pages#451). The 1.0.2 retry started 0.1 seconds after the first attempt and failed again on run #412, where the gap exceeded two seconds.
+- Noted that the REST artifact listing is not a usable readiness signal: `actions/deploy-pages` v5 reads the artifact through the Actions artifact service (`DefaultArtifactClient().listArtifacts()`) instead, so a run can list the artifact over REST while deploy-pages still sees none.
 
 ## 1.0.2 - 2026-11-26
 

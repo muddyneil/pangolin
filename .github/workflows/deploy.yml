@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 90
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
@@ -98,24 +98,22 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: public
-      # The artifact listing can lag behind upload-pages-artifact finalizing it,
-      # which makes deploy-pages fail with "No artifacts named github-pages"
-      # (actions/deploy-pages#451). Poll the same listing deploy-pages uses until
-      # it reports the artifact, instead of retrying on a fixed short delay.
-      - name: Wait for Pages artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          for _ in $(seq 1 30); do
-            count="$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-              --jq '[.artifacts[] | select(.name == "github-pages")] | length' || echo 0)"
-            if [ "$count" != "0" ]; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Pages artifact never became visible" >&2
-          exit 1
+      # deploy-pages v5 reads the artifact through the Actions artifact service
+      # (DefaultArtifactClient().listArtifacts()), not the REST artifact listing,
+      # and that service can still report zero artifacts a fraction of a second
+      # after upload-pages-artifact finalizes it (actions/deploy-pages#451).
+      # Polling the REST listing does not help: it is a different, independently
+      # cached view. Let the service settle, and keep one late retry for a slow
+      # listing. A failed lookup deploys nothing, so retrying the step is safe,
+      # unlike re-running the job, which would add a second github-pages artifact.
+      - name: Wait for the artifact service
+        run: sleep 15
       - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        continue-on-error: true
+      - name: Back off before retrying
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
